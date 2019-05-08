@@ -234,7 +234,7 @@ public class SplunkSearch
     long stopTime = System.currentTimeMillis();
     long elapsedTime = TimeUnit.MILLISECONDS.toMinutes(stopTime - startTime);
     
-    System.out.println("Total Time of Execution : " + elapsedTime);
+    System.out.println("Total Time of Execution : " + elapsedTime + "Min");
   }
 
 }
