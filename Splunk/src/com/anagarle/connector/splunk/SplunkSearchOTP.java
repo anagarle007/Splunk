@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import com.anagarle.connector.encryptdecrypt.EncryptAndDecrypt;
 import com.splunk.HttpService;
 import com.splunk.Job;
 import com.splunk.SSLSecurityProtocol;
@@ -144,8 +145,19 @@ public class SplunkSearchOTP
 	    System.out.println("Output File Prefix : " + outfileprefix ) ;
 	    System.out.println("-----------------------------\n");
 	    
-	    String password = prop.getProperty("password");
+	    boolean removequotes;
+	    	if(prop.getProperty("removequotes").toLowerCase().equals("true"))
+	    		removequotes = true;
+	    	else
+	    		removequotes = false;
 	    
+	    String password = null;
+	    try 
+	    {
+	    	password = EncryptAndDecrypt.decrypt(prop.getProperty("encryptedpassword"));
+	    } catch (Exception e) {
+	    	System.out.println("Unable to decrypt password " + prop.getProperty("encryptedpassword") ) ;
+	    }	    
 	    CreasteService(hostname, username, password, port, schema);
 
 		Job job = getSplunkService(hostname,username,searchname,appname,password,port);
@@ -159,6 +171,9 @@ public class SplunkSearchOTP
 	        System.out.println("Total Events received: " + totalResoutCount);
 	        
 	        int countLines = 0;
+            String fileName = new SimpleDateFormat("yyyyMMddHHmm'.txt'").format(new Date());
+			
+            System.out.println("Writing Lines to file : " + outfile + outfileprefix + "-" + fileName);
             while (recordsAvailable)
             {
 
@@ -173,7 +188,11 @@ public class SplunkSearchOTP
                   countLines++;
                   if (!line.contains("_raw"))
                   {
-                    sb.append(line.replace("\"", ""));
+                	if(removequotes)
+                		sb.append(line.replace("\"", ""));
+                	else
+                		sb.append(line);
+                	
                     sb.append("\n");
                   }
                 }
@@ -186,9 +205,7 @@ public class SplunkSearchOTP
                 offset = Integer.valueOf(offset.intValue() + COUNT);
               }
             
-            String fileName = new SimpleDateFormat("yyyyMMddHHmm'.txt'").format(new Date());
-			
-            System.out.println("Writing Lines to file : " + outfile + outfileprefix + "-" + fileName);
+
             PrintWriter Writer = new PrintWriter(outfile + outfileprefix + "-" + fileName);
             Writer.println(sb.toString().trim());
             sb.setLength(0);
@@ -208,7 +225,7 @@ public class SplunkSearchOTP
         long stopTime = System.currentTimeMillis();
         long elapsedTime = TimeUnit.MILLISECONDS.toMinutes(stopTime - startTime);
         
-        System.out.println("Total Time of Execution : " + elapsedTime + "Min");
+        System.out.println("Total Time of Execution : " + elapsedTime + " Min");
 
 	}
 }

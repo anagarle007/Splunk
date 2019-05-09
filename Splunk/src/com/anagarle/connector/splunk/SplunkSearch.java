@@ -1,5 +1,6 @@
 package com.anagarle.connector.splunk;
 
+import com.anagarle.connector.encryptdecrypt.EncryptAndDecrypt;
 import com.splunk.HttpService;
 import com.splunk.Job;
 import com.splunk.SSLSecurityProtocol;
@@ -160,8 +161,19 @@ public class SplunkSearch
     System.out.println("Output File Prefix : " + outfileprefix ) ;
     System.out.println("-----------------------------\n");
     
-    String password = prop.getProperty("password");
+    String password = null;
+	try {
+		password = EncryptAndDecrypt.decrypt(prop.getProperty("encryptedpassword"));
+	} catch (Exception e) {
+		System.out.println("Unable to decrypt password " + prop.getProperty("encryptedpassword") ) ;
+	}
     int  sleeptime = Integer.parseInt(prop.getProperty("sleeptime"));
+    
+    boolean removequotes;
+	if(prop.getProperty("removequotes").toLowerCase().equals("true"))
+		removequotes = true;
+	else
+		removequotes = false;
 
     CreasteService(hostname, username, password, port, schema);
     
@@ -182,6 +194,13 @@ public class SplunkSearch
         System.out.println("Total Events received: " + totalResoutCount);
         
         int countLines = 0;
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+    	Date From = new Date(Long.parseLong(tempFrom) * 1000);
+    	Date To = new Date(Long.parseLong(tempTo) * 1000);
+        
+        System.out.println("Writing Lines to file : " + outfile + outfileprefix + "-" +  dateFormat.format(From).toString().trim().replaceAll("\\s","_").replaceAll("\\/","") + "--" +  dateFormat.format(To).toString().trim().replaceAll("\\s","_").replaceAll("\\/",""));
+        
         while (recordsAvailable)
         {
 
@@ -196,7 +215,10 @@ public class SplunkSearch
             countLines++;
             if (!line.contains("_raw"))
             {
-              sb.append(line.replace("\"", ""));
+            	if(removequotes)
+            		sb.append(line.replace("\"", ""));
+            	else
+            		sb.append(line);
               sb.append("\n");
             }
           }
@@ -209,12 +231,6 @@ public class SplunkSearch
           offset = Integer.valueOf(offset.intValue() + COUNT);
         }
         
-        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
-    	Date From = new Date(Long.parseLong(tempFrom) * 1000);
-    	Date To = new Date(Long.parseLong(tempTo) * 1000);
-        
-        System.out.println("Writing Lines to file : " + outfile + outfileprefix + "-" +  dateFormat.format(From).toString().trim().replaceAll("\\s","_").replaceAll("\\/","") + "--" +  dateFormat.format(To).toString().trim().replaceAll("\\s","_").replaceAll("\\/",""));
         PrintWriter Writer = new PrintWriter(outfile + outfileprefix + "-" +  dateFormat.format(From).toString().trim().replaceAll("\\s","_").replaceAll("\\/","") + "--" +  dateFormat.format(To).toString().trim().replaceAll("\\s","_").replaceAll("\\/",""));
         Writer.println(sb.toString().trim());
         sb.setLength(0);
@@ -234,7 +250,7 @@ public class SplunkSearch
     long stopTime = System.currentTimeMillis();
     long elapsedTime = TimeUnit.MILLISECONDS.toMinutes(stopTime - startTime);
     
-    System.out.println("Total Time of Execution : " + elapsedTime + "Min");
+    System.out.println("Total Time of Execution : " + elapsedTime + " Min");
   }
 
 }
